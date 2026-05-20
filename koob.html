@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>KOOB — AI Book Classifier</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:        #1e1e1e;
+  --surface:   #252526;
+  --surface2:  #2d2d30;
+  --surface3:  #37373d;
+  --border:    #3e3e42;
+  --accent:    #0078d4;
+  --accent-h:  #1a8ad6;
+  --accent2:   #569cd6;
+  --text:      #d4d4d4;
+  --muted:     #858585;
+  --green:     #4ec9b0;
+  --purple:    #c586c0;
+  --yellow:    #dcdcaa;
+  --orange:    #ce9178;
+  --red:       #f48771;
+  --white:     #ffffff;
+  --radius:    6px;
+  --radius-lg: 10px;
+  --mono:      'JetBrains Mono', 'Courier New', monospace;
+  --sans:      'Inter', 'Segoe UI', system-ui, sans-serif;
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  min-height: 100vh;
+  max-width: 480px;
+  margin: 0 auto;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── TOPBAR ── */
+.topbar {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 12px 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.logo {
+  width: 32px; height: 32px;
+  background: var(--accent);
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--mono);
+  font-size: 12px; font-weight: 700;
+  color: #fff; letter-spacing: -1px;
+  flex-shrink: 0;
+}
+.topbar-title { color: var(--white); font-size: 15px; font-weight: 600; flex: 1; }
+.topbar-sub { font-size: 11px; color: var(--muted); font-family: var(--mono); }
+
+/* ── HERO ── */
+.hero {
+  background: var(--bg);
+  padding: 32px 20px 28px;
+  border-bottom: 1px solid var(--border);
+  position: relative;
+  overflow: hidden;
+}
+.binary-bg {
+  position: absolute; inset: 0;
+  font-family: var(--mono);
+  font-size: 9px; color: #2a2a2a;
+  line-height: 1.6; letter-spacing: 2px;
+  padding: 8px 12px;
+  pointer-events: none;
+  user-select: none;
+  word-break: break-all;
+  overflow: hidden;
+}
+.hero-content { position: relative; z-index: 1; }
+.hero-eyebrow {
+  font-family: var(--mono);
+  font-size: 11px; color: var(--accent2);
+  letter-spacing: 0.08em;
+  margin-bottom: 10px;
+}
+.hero h1 {
+  font-size: 28px; font-weight: 600;
+  color: var(--white); line-height: 1.18;
+  margin-bottom: 8px;
+}
+.hero h1 em { font-style: normal; color: var(--accent2); }
+.hero-sub {
+  font-size: 13px; color: var(--muted);
+  line-height: 1.6; margin-bottom: 24px;
+  font-family: var(--mono);
+}
+.hero-cta {
+  width: 100%; padding: 13px 20px;
+  background: var(--accent);
+  color: #fff; border: none;
+  border-radius: var(--radius);
+  font-size: 14px; font-weight: 500;
+  cursor: pointer; font-family: var(--sans);
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  transition: background 0.15s, transform 0.1s;
+}
+.hero-cta:hover { background: var(--accent-h); }
+.hero-cta:active { transform: scale(0.98); }
+.hero-links {
+  display: flex; gap: 16px; justify-content: center;
+  margin-top: 14px;
+}
+.hero-links button {
+  background: none; border: none;
+  color: var(--accent2); font-size: 12px;
+  cursor: pointer; text-decoration: underline;
+  font-family: var(--sans); padding: 0;
+}
+.hero-links button:hover { color: var(--white); }
+
+/* ── TABS ── */
+.tabs {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+}
+.tab {
+  flex: 1; padding: 11px 8px;
+  background: transparent; border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--muted);
+  font-size: 12px; font-family: var(--sans);
+  cursor: pointer; display: flex;
+  align-items: center; justify-content: center; gap: 6px;
+  transition: all 0.15s;
+}
+.tab svg { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-width: 2; }
+.tab.active {
+  color: var(--white);
+  border-bottom-color: var(--accent);
+  background: var(--surface2);
+}
+.tab:hover:not(.active) { color: var(--text); background: var(--surface2); }
+
+/* ── PANE ── */
+.pane { padding: 20px; display: none; }
+.pane.active { display: block; }
+
+/* ── FORM ELEMENTS ── */
+.field { margin-bottom: 14px; }
+.field-label {
+  font-size: 10px; color: var(--muted);
+  letter-spacing: 0.08em; text-transform: uppercase;
+  font-family: var(--mono); margin-bottom: 6px;
+  display: block;
+}
+.field-label .req { color: var(--accent2); }
+
+input[type="text"], textarea {
+  width: 100%;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  padding: 10px 12px;
+  font-size: 13px;
+  font-family: var(--mono);
+  outline: none;
+  transition: border-color 0.15s, background 0.15s;
+  -webkit-appearance: none;
+}
+input[type="text"]::placeholder, textarea::placeholder {
+  color: #4a4a4f; font-style: italic;
+}
+input[type="text"]:focus, textarea:focus {
+  border-color: var(--accent);
+  background: var(--surface3);
+}
+textarea { resize: vertical; min-height: 72px; line-height: 1.5; }
+
+.run-btn {
+  width: 100%; padding: 12px 20px;
+  background: var(--accent); color: #fff;
+  border: none; border-radius: var(--radius);
+  font-size: 14px; font-weight: 500;
+  cursor: pointer; font-family: var(--sans);
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  transition: background 0.15s, transform 0.1s, opacity 0.15s;
+}
+.run-btn:hover:not(:disabled) { background: var(--accent-h); }
+.run-btn:active:not(:disabled) { transform: scale(0.98); }
+.run-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.run-btn svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 2; flex-shrink: 0; }
+
+/* ── ERROR ── */
+.error-box {
+  display: none; margin-top: 12px;
+  padding: 10px 14px;
+  background: #f4877112;
+  border: 1px solid #f4877135;
+  border-radius: var(--radius);
+}
+.error-box code {
+  color: var(--red); font-family: var(--mono);
+  font-size: 12px; line-height: 1.5;
+}
+
+/* ── SPINNER ── */
+.spinner {
+  width: 15px; height: 15px; flex-shrink: 0;
+  border: 2px solid rgba(255,255,255,0.25);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.65s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── RESULT CARD ── */
+.result-card {
+  display: none; margin-top: 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+.result-card.visible { display: block; animation: fadeSlide 0.25s ease; }
+@keyframes fadeSlide { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+.result-header {
+  background: var(--surface2);
+  padding: 9px 16px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 8px;
+}
+.result-header svg { width: 14px; height: 14px; stroke: var(--green); fill: none; stroke-width: 2.5; flex-shrink: 0; }
+.result-header span { color: var(--muted); font-size: 10px; font-family: var(--mono); text-transform: uppercase; letter-spacing: 0.08em; }
+
+.result-body { padding: 16px; }
+
+.rvk-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: #0078d418; border: 1px solid #0078d440;
+  color: var(--accent2); font-family: var(--mono);
+  font-size: 13px; font-weight: 700;
+  padding: 4px 12px; border-radius: 4px;
+  margin-bottom: 10px;
+}
+.rvk-badge::before { content: '//'; color: var(--muted); font-size: 11px; }
+
+.rvk-name {
+  color: var(--yellow);
+  font-size: 15px; font-weight: 500;
+  margin-bottom: 10px; line-height: 1.4;
+}
+.rvk-explanation {
+  color: var(--text); font-size: 13px;
+  line-height: 1.65; font-family: var(--mono);
+}
+
+.divider { border: none; border-top: 1px solid var(--border); margin: 14px 0; }
+
+.breadcrumb-label {
+  font-size: 10px; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 0.08em;
+  font-family: var(--mono); margin-bottom: 6px;
+}
+.breadcrumb-text {
+  color: var(--purple); font-family: var(--mono);
+  font-size: 12px; line-height: 1.6;
+}
+
+/* ── SEARCH RESULTS ── */
+.book-item {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+.book-item:first-child { padding-top: 0; }
+.book-item:last-child { border-bottom: none; padding-bottom: 0; }
+.book-title {
+  color: var(--yellow); font-size: 13px;
+  font-weight: 500; margin-bottom: 3px;
+  line-height: 1.4;
+}
+.book-meta { color: var(--muted); font-size: 11px; font-family: var(--mono); margin-bottom: 7px; }
+.book-rvk {
+  display: inline-block;
+  background: #4ec9b012; border: 1px solid #4ec9b030;
+  color: var(--green); font-family: var(--mono);
+  font-size: 10px; padding: 2px 8px; border-radius: 3px;
+}
+
+/* ── FOOTER ── */
+.footer {
+  padding: 20px; text-align: center;
+  border-top: 1px solid var(--border);
+  margin-top: 8px;
+}
+.footer p { font-size: 11px; color: var(--muted); font-family: var(--mono); line-height: 1.8; }
+.footer span { color: var(--accent2); }
+
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="logo">KB</div>
+  <div>
+    <div class="topbar-title">KOOB</div>
+  </div>
+  <div class="topbar-sub">v1.0.0</div>
+</div>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="binary-bg" aria-hidden="true">
+    0 1 0 0 1 1 0 1 1 0 1 0 0 1 1 0 0 1 0 1 1 0 0 1 0 1 0 0 1 1 0 1 0 1 1 0
+    1 0 1 1 0 0 1 0 0 1 1 0 1 0 0 1 0 1 1 0 1 0 0 1 0 0 1 1 0 1 1 0 1 0 0 1
+    0 1 0 1 1 0 0 1 1 0 1 0 1 0 0 1 0 1 0 0 1 1 0 1 1 0 0 1 0 1 1 0 1 0 0 1
+    1 0 0 1 0 1 1 0 0 1 1 0 1 0 0 1 1 0 1 0 1 1 0 0 1 0 0 1 0 1 1 0 0 1 0 1
+    0 1 1 0 1 0 0 1 0 0 1 1 0 1 0 1 1 0 0 1 1 0 1 0 1 0 0 1 0 1 1 0 1 1 0 0
+  </div>
+  <div class="hero-content">
+    <div class="hero-eyebrow">// AI-powered RVK classification</div>
+    <h1>The open source<br><em>AI book classifier</em></h1>
+    <p class="hero-sub">Your home for RVK classification.<br>No expertise needed.</p>
+    <button class="hero-cta" onclick="document.getElementById('pane-classify').scrollIntoView({behavior:'smooth'}); switchTab('classify')">
+      <svg viewBox="0 0 24 24" style="width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2;flex-shrink:0"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+      Classify a book
+    </button>
+    <div class="hero-links">
+      <button onclick="switchTab('classify')">Classify</button>
+      <button onclick="switchTab('search')">Search library</button>
+    </div>
+  </div>
+</section>
+
+<!-- TABS -->
+<div class="tabs">
+  <button class="tab active" id="tab-classify" onclick="switchTab('classify')">
+    <svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;flex-shrink:0"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+    Classify
+  </button>
+  <button class="tab" id="tab-search" onclick="switchTab('search')">
+    <svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;flex-shrink:0"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    Search library
+  </button>
+</div>
+
+<!-- PANE: CLASSIFY -->
+<div class="pane active" id="pane-classify">
+  <div class="field">
+    <label class="field-label" for="title">Book title <span class="req">*</span></label>
+    <input type="text" id="title" placeholder="e.g. Sapiens" autocomplete="off" />
+  </div>
+  <div class="field">
+    <label class="field-label" for="author">Author(s)</label>
+    <input type="text" id="author" placeholder="e.g. Yuval Noah Harari" autocomplete="off" />
+  </div>
+  <div class="field">
+    <label class="field-label" for="desc">Description <span style="color:#4a4a4f">(optional)</span></label>
+    <textarea id="desc" placeholder="// A few sentences about the book content..."></textarea>
+  </div>
+
+  <button class="run-btn" id="btn-classify" onclick="classifyBook()">
+    <svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;flex-shrink:0"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+    Run classifier
+  </button>
+
+  <div class="error-box" id="err-classify">
+    <code id="err-classify-msg"></code>
+  </div>
+
+  <div class="result-card" id="classify-result">
+    <div class="result-header">
+      <svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;flex-shrink:0"><polyline points="20 6 9 17 4 12"/></svg>
+      <span>RVK category assigned</span>
+    </div>
+    <div class="result-body">
+      <div class="rvk-badge" id="res-code"></div>
+      <div class="rvk-name" id="res-name"></div>
+      <div class="rvk-explanation" id="res-explanation"></div>
+      <div id="res-breadcrumb-wrap" style="display:none">
+        <hr class="divider">
+        <div class="breadcrumb-label">// Hierarchy</div>
+        <div class="breadcrumb-text" id="res-breadcrumb"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PANE: SEARCH -->
+<div class="pane" id="pane-search">
+  <div class="field">
+    <label class="field-label" for="search-query">Keyword or subject <span class="req">*</span></label>
+    <input type="text" id="search-query" placeholder="e.g. artificial intelligence" autocomplete="off" />
+  </div>
+  <div class="field">
+    <label class="field-label" for="search-rvk">RVK category filter <span style="color:#4a4a4f">(optional)</span></label>
+    <input type="text" id="search-rvk" placeholder="e.g. ST 300" autocomplete="off" />
+  </div>
+
+  <button class="run-btn" id="btn-search" onclick="searchBooks()">
+    <svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;flex-shrink:0"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    Search library
+  </button>
+
+  <div class="error-box" id="err-search">
+    <code id="err-search-msg"></code>
+  </div>
+
+  <div class="result-card" id="search-result">
+    <div class="result-header">
+      <svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;flex-shrink:0"><polyline points="20 6 9 17 4 12"/></svg>
+      <span>Books found</span>
+    </div>
+    <div class="result-body" id="search-books"></div>
+  </div>
+</div>
+
+<!-- FOOTER -->
+<div class="footer">
+  <p>KOOB — powered by <span>Claude AI</span><br>
+  Regensburg Classification System (RVK)<br>
+  <span>// open source · AI-assisted · no expertise needed</span></p>
+</div>
+
+<script>
+function switchTab(tab) {
+  ['classify','search'].forEach(t => {
+    document.getElementById('tab-' + t).classList.toggle('active', t === tab);
+    document.getElementById('pane-' + t).classList.toggle('active', t === tab);
+  });
+}
+
+function showError(pane, msg) {
+  const box = document.getElementById('err-' + pane);
+  document.getElementById('err-' + pane + '-msg').textContent = '> Error: ' + msg;
+  box.style.display = 'block';
+}
+function hideError(pane) {
+  document.getElementById('err-' + pane).style.display = 'none';
+}
+function setLoading(btnId, loading, defaultHTML) {
+  const btn = document.getElementById(btnId);
+  btn.disabled = loading;
+  if (loading) {
+    btn.innerHTML = '<div class="spinner"></div> Running...';
+  } else {
+    btn.innerHTML = defaultHTML;
+  }
+}
+
+async function callClaude(system, user) {
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'anthropic-dangerous-direct-browser-access': 'true'
+    },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 1000,
+      system: system,
+      messages: [{ role: 'user', content: user }]
+    })
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err?.error?.message || 'HTTP ' + res.status);
+  }
+  const data = await res.json();
+  const txt = data.content?.find(b => b.type === 'text')?.text || '';
+  const clean = txt.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
+  return JSON.parse(clean);
+}
+
+async function classifyBook() {
+  const title = document.getElementById('title').value.trim();
+  if (!title) { showError('classify', 'title is required.'); return; }
+  hideError('classify');
+  const author = document.getElementById('author').value.trim();
+  const desc = document.getElementById('desc').value.trim();
+
+  const classifyBtnHTML = '<svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;flex-shrink:0"><polygon points="5 3 19 12 5 21 5 3"/></svg> Run classifier';
+  setLoading('btn-classify', true, classifyBtnHTML);
+
+  const card = document.getElementById('classify-result');
+  card.classList.remove('visible');
+  card.style.display = 'none';
+
+  try {
+    const data = await callClaude(
+      'You are an expert in the Regensburg Classification System (RVK) used in German university libraries. Respond ONLY with valid JSON, no markdown formatting, no text before or after.',
+      `Classify this book in the RVK system:
+Title: ${title}
+${author ? 'Author: ' + author : ''}
+${desc ? 'Description: ' + desc : ''}
+
+Return ONLY this JSON structure:
+{"code":"XX 000","name":"Category name in English","breadcrumb":"Main Category > Sub-category > Specific","explanation":"2-3 sentences explaining why this book belongs to this RVK category."}`
+    );
+
+    document.getElementById('res-code').textContent = data.code || '—';
+    document.getElementById('res-name').textContent = data.name || '—';
+    document.getElementById('res-explanation').textContent = data.explanation || '—';
+
+    const bwrap = document.getElementById('res-breadcrumb-wrap');
+    if (data.breadcrumb) {
+      document.getElementById('res-breadcrumb').textContent = data.breadcrumb;
+      bwrap.style.display = '';
+    } else {
+      bwrap.style.display = 'none';
+    }
+
+    card.style.display = '';
+    requestAnimationFrame(() => card.classList.add('visible'));
+  } catch(e) {
+    showError('classify', e.message);
+  }
+
+  setLoading('btn-classify', false, classifyBtnHTML);
+}
+
+async function searchBooks() {
+  const query = document.getElementById('search-query').value.trim();
+  if (!query) { showError('search', 'keyword is required.'); return; }
+  hideError('search');
+  const rvk = document.getElementById('search-rvk').value.trim();
+
+  const searchBtnHTML = '<svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;flex-shrink:0"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg> Search library';
+  setLoading('btn-search', true, searchBtnHTML);
+
+  const card = document.getElementById('search-result');
+  card.classList.remove('visible');
+  card.style.display = 'none';
+
+  try {
+    const data = await callClaude(
+      'You are a librarian expert in the RVK (Regensburger Verbundklassifikation) system. Respond ONLY with valid JSON, no markdown, no text before or after.',
+      `Suggest 3 real, existing academic books about: "${query}"
+${rvk ? 'Filter by RVK category: ' + rvk : ''}
+
+Return ONLY this JSON:
+{"books":[{"title":"Full book title","author":"Author Name","year":2020,"rvk_code":"XX 000","rvk_category":"Category name"}]}`
+    );
+
+    const books = data.books || [];
+    if (books.length === 0) {
+      document.getElementById('search-books').innerHTML = '<p style="color:var(--muted);font-size:13px;font-family:var(--mono)">// No results found.</p>';
+    } else {
+      document.getElementById('search-books').innerHTML = books.map(b => `
+        <div class="book-item">
+          <div class="book-title">${escHtml(b.title)}</div>
+          <div class="book-meta">${escHtml(b.author)} &middot; ${b.year}</div>
+          <span class="book-rvk">${escHtml(b.rvk_code)} — ${escHtml(b.rvk_category)}</span>
+        </div>
+      `).join('');
+    }
+
+    card.style.display = '';
+    requestAnimationFrame(() => card.classList.add('visible'));
+  } catch(e) {
+    showError('search', e.message);
+  }
+
+  setLoading('btn-search', false, searchBtnHTML);
+}
+
+function escHtml(str) {
+  return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+document.getElementById('title').addEventListener('keydown', e => { if (e.key === 'Enter') classifyBook(); });
+document.getElementById('search-query').addEventListener('keydown', e => { if (e.key === 'Enter') searchBooks(); });
+</script>
+</body>
+</html>
